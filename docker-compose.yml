@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mechanic_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mechanic_ondemand
+      MYSQL_USER: mechanic_user
+      MYSQL_PASSWORD: mechanic_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - mechanic_network
+
+  backend:
+    build: .
+    container_name: mechanic_backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/mechanic_ondemand?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: password
+    depends_on:
+      - mysql
+    networks:
+      - mechanic_network
+
+  frontend:
+    build: ./frontend
+    container_name: mechanic_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8080
+    depends_on:
+      - backend
+    networks:
+      - mechanic_network
+
+volumes:
+  mysql_data:
+
+networks:
+  mechanic_network:
+    driver: bridge
