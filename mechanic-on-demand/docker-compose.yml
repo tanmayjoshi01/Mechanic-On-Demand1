@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: mechanic-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mechanic_on_demand
+      MYSQL_USER: mechanic_user
+      MYSQL_PASSWORD: mechanic_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - mechanic-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mechanic-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_USERNAME: root
+      DB_PASSWORD: password
+      JWT_SECRET: mechanicOnDemandSecretKeyForJWTTokenGeneration2023
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - mechanic-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mechanic-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - mechanic-network
+
+volumes:
+  mysql_data:
+
+networks:
+  mechanic-network:
+    driver: bridge
